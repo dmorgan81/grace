@@ -108,6 +108,11 @@ static void prv_tick_handler(struct tm *tick_time, TimeUnits units_changed) {
     }
 
     memcpy(&s_tick_time, tick_time, sizeof(struct tm));
+#ifdef DEMO
+    s_tick_time.tm_hour = 8;
+    s_tick_time.tm_min = 0;
+    s_tick_time.tm_sec = 20;
+#endif
     layer_mark_dirty(s_hands_layer);
 }
 
