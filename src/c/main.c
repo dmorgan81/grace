@@ -1,5 +1,9 @@
 #include <pebble.h>
 #include <ctype.h>
+#include <pebble-events/pebble-events.h>
+#include <pebble-hourly-vibes/hourly-vibes.h>
+#include <pebble-connection-vibes/connection-vibes.h>
+#include "enamel.h"
 #include "logging.h"
 
 static Window *s_window;
@@ -8,6 +12,9 @@ static TextLayer *s_date_layer;
 static Layer *s_hands_layer;
 
 static struct tm s_tick_time;
+
+static EventHandle s_tick_timer_event_handle;
+static EventHandle s_settings_received_event_handle;
 
 static void prv_hands_layer_update_proc(Layer *this, GContext *ctx) {
     logf();
@@ -27,14 +34,16 @@ static void prv_hands_layer_update_proc(Layer *this, GContext *ctx) {
     point = gpoint_from_polar(bounds, GOvalScaleModeFitCircle, angle);
     graphics_draw_line(ctx, center, point);
 
+    if (enamel_get_SHOW_SECOND_HAND()) {
 #ifdef PBL_COLOR
-    graphics_context_set_stroke_color(ctx, GColorRed);
+        graphics_context_set_stroke_color(ctx, GColorRed);
 #endif
-    graphics_context_set_stroke_width(ctx, 1);
+        graphics_context_set_stroke_width(ctx, 1);
 
-    angle = s_tick_time.tm_sec * TRIG_MAX_ANGLE / 60;
-    point = gpoint_from_polar(bounds, GOvalScaleModeFitCircle, angle);
-    graphics_draw_line(ctx, center, point);
+        angle = s_tick_time.tm_sec * TRIG_MAX_ANGLE / 60;
+        point = gpoint_from_polar(bounds, GOvalScaleModeFitCircle, angle);
+        graphics_draw_line(ctx, center, point);
+    }
 
     graphics_context_set_fill_color(ctx, GColorBlack);
     graphics_fill_circle(ctx, center, 6);
@@ -89,6 +98,24 @@ static void prv_tick_handler(struct tm *tick_time, TimeUnits units_changed) {
     layer_mark_dirty(s_hands_layer);
 }
 
+static void prv_settings_received_handler(void *context) {
+    logf();
+    hourly_vibes_set_enabled(enamel_get_HOURLY_VIBE());
+    connection_vibes_set_state(atoi(enamel_get_CONNECTION_VIBE()));
+#ifdef PBL_HEALTH
+    connection_vibes_enable_health(enamel_get_ENABLE_HEALTH());
+    hourly_vibes_enable_health(enamel_get_ENABLE_HEALTH());
+#endif
+
+    if (s_tick_timer_event_handle)
+        events_tick_timer_service_unsubscribe(s_tick_timer_event_handle);
+
+    time_t now = time(NULL);
+    prv_tick_handler(localtime(&now), DAY_UNIT);
+    s_tick_timer_event_handle = events_tick_timer_service_subscribe(
+        enamel_get_SHOW_SECOND_HAND() ? SECOND_UNIT : MINUTE_UNIT, prv_tick_handler);
+}
+
 static void prv_window_load(Window *window) {
     logf();
     Layer *root_layer = window_get_root_layer(window);
@@ -109,15 +136,16 @@ static void prv_window_load(Window *window) {
     layer_set_update_proc(s_hands_layer, prv_hands_layer_update_proc);
     layer_add_child(root_layer, s_hands_layer);
 
-    time_t now = time(NULL);
-    prv_tick_handler(localtime(&now), DAY_UNIT | SECOND_UNIT);
-    tick_timer_service_subscribe(SECOND_UNIT, prv_tick_handler);
+
+    prv_settings_received_handler(NULL);
+    s_settings_received_event_handle = enamel_settings_received_subscribe(prv_settings_received_handler, NULL);
 
     window_set_background_color(window, GColorBlack);
 }
 
 static void prv_window_unload(Window *window) {
     logf();
+    enamel_settings_received_unsubscribe(s_settings_received_event_handle);
     tick_timer_service_unsubscribe();
 
     layer_destroy(s_hands_layer);
@@ -127,6 +155,16 @@ static void prv_window_unload(Window *window) {
 
 static void prv_init(void) {
     logf();
+    enamel_init();
+    connection_vibes_init();
+    hourly_vibes_init();
+    uint32_t const pattern[] = { 100 };
+    hourly_vibes_set_pattern((VibePattern) {
+        .durations = pattern,
+        .num_segments = 1
+    });
+    events_app_message_open();
+
     s_window = window_create();
     window_set_window_handlers(s_window, (WindowHandlers) {
         .load = prv_window_load,
@@ -138,6 +176,10 @@ static void prv_init(void) {
 static void prv_deinit(void) {
     logf();
     window_destroy(s_window);
+
+    connection_vibes_deinit();
+    hourly_vibes_deinit();
+    enamel_deinit();
 }
 
 int main(void) {

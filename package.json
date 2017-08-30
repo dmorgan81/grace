@@ -6,7 +6,11 @@
     "pebble-app"
   ],
   "private": true,
-  "dependencies": {},
+  "dependencies": {
+    "enamel": "^1.2.5",
+    "pebble-connection-vibes": "^1.1.0",
+    "pebble-hourly-vibes": "^1.1.0"
+  },
   "pebble": {
     "displayName": "Grace",
     "uuid": "00cd7ce2-4650-4b9e-b4c6-c75b039e3b0e",
@@ -21,7 +25,12 @@
     "watchapp": {
       "watchface": true
     },
-    "messageKeys": [],
+    "messageKeys": [
+      "HOURLY_VIBE",
+      "CONNECTION_VIBE",
+      "ENABLE_HEALTH",
+      "SHOW_SECOND_HAND"
+    ],
     "resources": {
       "media": []
     }
