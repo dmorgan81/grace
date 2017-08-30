@@ -1,8 +1,10 @@
 #include <pebble.h>
+#include <ctype.h>
 #include "logging.h"
 
 static Window *s_window;
 static Layer *s_ticks_layer;
+static TextLayer *s_date_layer;
 static Layer *s_hands_layer;
 
 static struct tm s_tick_time;
@@ -70,8 +72,19 @@ static void prv_ticks_layer_update_proc(Layer *this, GContext *ctx) {
     }
 }
 
+static inline void strupp(char *s) {
+    while ((*s++ = (char) toupper((int) *s)));
+}
+
 static void prv_tick_handler(struct tm *tick_time, TimeUnits units_changed) {
     logf();
+    if (units_changed & DAY_UNIT) {
+        static char s[8];
+        strftime(s, sizeof(s), "%a %d", tick_time);
+        strupp(s);
+        text_layer_set_text(s_date_layer, s);
+    }
+
     memcpy(&s_tick_time, tick_time, sizeof(struct tm));
     layer_mark_dirty(s_hands_layer);
 }
@@ -85,12 +98,19 @@ static void prv_window_load(Window *window) {
     layer_set_update_proc(s_ticks_layer, prv_ticks_layer_update_proc);
     layer_add_child(root_layer, s_ticks_layer);
 
+    s_date_layer = text_layer_create(GRect(0, PBL_IF_RECT_ELSE(78, 84), bounds.size.w - PBL_IF_RECT_ELSE(18, 32), bounds.size.h));
+    text_layer_set_background_color(s_date_layer, GColorClear);
+    text_layer_set_font(s_date_layer, fonts_get_system_font(FONT_KEY_GOTHIC_09));
+    text_layer_set_text_alignment(s_date_layer, GTextAlignmentRight);
+    text_layer_set_text_color(s_date_layer, GColorWhite);
+    layer_add_child(root_layer, text_layer_get_layer(s_date_layer));
+
     s_hands_layer = layer_create(grect_crop(bounds, PBL_IF_RECT_ELSE(12, 27)));
     layer_set_update_proc(s_hands_layer, prv_hands_layer_update_proc);
     layer_add_child(root_layer, s_hands_layer);
 
     time_t now = time(NULL);
-    prv_tick_handler(localtime(&now), SECOND_UNIT);
+    prv_tick_handler(localtime(&now), DAY_UNIT | SECOND_UNIT);
     tick_timer_service_subscribe(SECOND_UNIT, prv_tick_handler);
 
     window_set_background_color(window, GColorBlack);
@@ -101,6 +121,7 @@ static void prv_window_unload(Window *window) {
     tick_timer_service_unsubscribe();
 
     layer_destroy(s_hands_layer);
+    text_layer_destroy(s_date_layer);
     layer_destroy(s_ticks_layer);
 }
 
