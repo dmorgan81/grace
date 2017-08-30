@@ -1,7 +1,7 @@
 {
   "name": "grace",
   "author": "David Morgan",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "keywords": [
     "pebble-app"
   ],
@@ -38,6 +38,12 @@
           "name": "MENU_ICON",
           "file": "menu-icon.png",
           "menuIcon": true
+        },
+        {
+          "type": "font",
+          "name": "FONT_10",
+          "file": "Lato-Regular.ttf",
+          "characterRegex": "[0-9ADEFHIMNORSTUW ]"
         }
       ]
     }

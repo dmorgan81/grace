@@ -6,6 +6,8 @@
 #include "enamel.h"
 #include "logging.h"
 
+static GFont s_font;
+
 static Window *s_window;
 static Layer *s_ticks_layer;
 static TextLayer *s_date_layer;
@@ -143,9 +145,9 @@ static void prv_window_load(Window *window) {
     layer_set_update_proc(s_ticks_layer, prv_ticks_layer_update_proc);
     layer_add_child(root_layer, s_ticks_layer);
 
-    s_date_layer = text_layer_create(GRect(0, PBL_IF_RECT_ELSE(78, 84), bounds.size.w - PBL_IF_RECT_ELSE(18, 32), bounds.size.h));
+    s_date_layer = text_layer_create(GRect(0, PBL_IF_RECT_ELSE(77, 83), bounds.size.w - PBL_IF_RECT_ELSE(15, 30), bounds.size.h));
     text_layer_set_background_color(s_date_layer, GColorClear);
-    text_layer_set_font(s_date_layer, fonts_get_system_font(FONT_KEY_GOTHIC_09));
+    text_layer_set_font(s_date_layer, s_font);
     text_layer_set_text_alignment(s_date_layer, GTextAlignmentRight);
     text_layer_set_text_color(s_date_layer, GColorWhite);
     layer_add_child(root_layer, text_layer_get_layer(s_date_layer));
@@ -178,6 +180,8 @@ static void prv_window_unload(Window *window) {
 
 static void prv_init(void) {
     logf();
+    s_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_10));
+
     enamel_init();
     connection_vibes_init();
     hourly_vibes_init();
@@ -203,6 +207,8 @@ static void prv_deinit(void) {
     connection_vibes_deinit();
     hourly_vibes_deinit();
     enamel_deinit();
+
+    fonts_unload_custom_font(s_font);
 }
 
 int main(void) {
