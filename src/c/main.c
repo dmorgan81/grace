@@ -12,7 +12,9 @@ static TextLayer *s_date_layer;
 static Layer *s_hands_layer;
 
 static struct tm s_tick_time;
+static bool s_connected;
 
+static EventHandle s_connection_event_handle;
 static EventHandle s_tick_timer_event_handle;
 static EventHandle s_settings_received_event_handle;
 
@@ -50,6 +52,11 @@ static void prv_hands_layer_update_proc(Layer *this, GContext *ctx) {
 
     graphics_context_set_fill_color(ctx, GColorWhite);
     graphics_fill_circle(ctx, center, 3);
+
+    if (!s_connected) {
+        graphics_context_set_fill_color(ctx, GColorBlack);
+        graphics_fill_circle(ctx, center, 2);
+    }
 }
 
 static void prv_ticks_layer_update_proc(Layer *this, GContext *ctx) {
@@ -79,6 +86,12 @@ static void prv_ticks_layer_update_proc(Layer *this, GContext *ctx) {
             graphics_draw_line(ctx, p1, p2);
         }
     }
+}
+
+static void prv_app_connection_handler(bool connected) {
+    logf();
+    s_connected = connected;
+    layer_mark_dirty(s_hands_layer);
 }
 
 static inline void strupp(char *s) {
@@ -136,6 +149,10 @@ static void prv_window_load(Window *window) {
     layer_set_update_proc(s_hands_layer, prv_hands_layer_update_proc);
     layer_add_child(root_layer, s_hands_layer);
 
+    prv_app_connection_handler(connection_service_peek_pebble_app_connection());
+    s_connection_event_handle = events_connection_service_subscribe((ConnectionHandlers) {
+        .pebble_app_connection_handler = prv_app_connection_handler
+    });
 
     prv_settings_received_handler(NULL);
     s_settings_received_event_handle = enamel_settings_received_subscribe(prv_settings_received_handler, NULL);
@@ -145,8 +162,9 @@ static void prv_window_load(Window *window) {
 
 static void prv_window_unload(Window *window) {
     logf();
+    if (s_tick_timer_event_handle) events_tick_timer_service_unsubscribe(s_tick_timer_event_handle);
     enamel_settings_received_unsubscribe(s_settings_received_event_handle);
-    tick_timer_service_unsubscribe();
+    events_connection_service_unsubscribe(s_connection_event_handle);
 
     layer_destroy(s_hands_layer);
     text_layer_destroy(s_date_layer);
