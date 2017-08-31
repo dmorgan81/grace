@@ -28,7 +28,7 @@ static void prv_quiet_time_layer_update_proc(Layer *this, GContext *ctx) {
     logf();
     if (!quiet_time_is_active()) return;
 
-    graphics_context_set_text_color(ctx, GColorWhite);
+    graphics_context_set_text_color(ctx, enamel_get_INVERT_COLORS() ? GColorBlack : GColorWhite);
     graphics_draw_text(ctx, "QT", s_font, layer_get_bounds(this), GTextOverflowModeFill, GTextAlignmentLeft, NULL);
 }
 #endif
@@ -41,7 +41,7 @@ static void prv_hands_layer_update_proc(Layer *this, GContext *ctx) {
     center.y -= 1;
 
     graphics_context_set_stroke_width(ctx, 3);
-    graphics_context_set_stroke_color(ctx, GColorWhite);
+    graphics_context_set_stroke_color(ctx, enamel_get_INVERT_COLORS() ? GColorBlack : GColorWhite);
 
     int32_t angle = TRIG_MAX_ANGLE * ((((s_tick_time.tm_hour % 12) * 6) + (s_tick_time.tm_min / 10))) / (12 * 6);
     GPoint point = gpoint_from_polar(grect_crop(bounds, 15), GOvalScaleModeFitCircle, angle);
@@ -62,14 +62,14 @@ static void prv_hands_layer_update_proc(Layer *this, GContext *ctx) {
         graphics_draw_line(ctx, center, point);
     }
 
-    graphics_context_set_fill_color(ctx, GColorBlack);
+    graphics_context_set_fill_color(ctx, enamel_get_INVERT_COLORS() ? GColorWhite : GColorBlack);
     graphics_fill_circle(ctx, center, 6);
 
-    graphics_context_set_fill_color(ctx, GColorWhite);
+    graphics_context_set_fill_color(ctx, enamel_get_INVERT_COLORS() ? GColorBlack : GColorWhite);
     graphics_fill_circle(ctx, center, 3);
 
     if (!s_connected) {
-        graphics_context_set_fill_color(ctx, GColorBlack);
+        graphics_context_set_fill_color(ctx, enamel_get_INVERT_COLORS() ? GColorWhite : GColorBlack);
         graphics_fill_circle(ctx, center, 2);
     }
 }
@@ -82,7 +82,7 @@ static void prv_ticks_layer_update_proc(Layer *this, GContext *ctx) {
 
     graphics_context_set_stroke_width(ctx, 2);
 #ifdef PBL_BW
-    graphics_context_set_stroke_color(ctx, GColorWhite);
+    graphics_context_set_stroke_color(ctx, enamel_get_INVERT_COLORS() ? GColorBlack : GColorWhite);
 #endif
 
     for (int i = 0; i < 12; i++) {
@@ -140,6 +140,9 @@ static void prv_settings_received_handler(void *context) {
     hourly_vibes_enable_health(enamel_get_ENABLE_HEALTH());
 #endif
 
+    text_layer_set_text_color(s_date_layer, enamel_get_INVERT_COLORS() ? GColorBlack : GColorWhite);
+    window_set_background_color(s_window, enamel_get_INVERT_COLORS() ? GColorWhite: GColorBlack);
+
     if (s_tick_timer_event_handle)
         events_tick_timer_service_unsubscribe(s_tick_timer_event_handle);
 
@@ -162,7 +165,6 @@ static void prv_window_load(Window *window) {
     text_layer_set_background_color(s_date_layer, GColorClear);
     text_layer_set_font(s_date_layer, s_font);
     text_layer_set_text_alignment(s_date_layer, GTextAlignmentRight);
-    text_layer_set_text_color(s_date_layer, GColorWhite);
     layer_add_child(root_layer, text_layer_get_layer(s_date_layer));
 
 #ifndef PBL_PLATFORM_APLITE
@@ -182,8 +184,6 @@ static void prv_window_load(Window *window) {
 
     prv_settings_received_handler(NULL);
     s_settings_received_event_handle = enamel_settings_received_subscribe(prv_settings_received_handler, NULL);
-
-    window_set_background_color(window, GColorBlack);
 }
 
 static void prv_window_unload(Window *window) {

@@ -10,6 +10,13 @@
             },
             {
                 "type": "toggle",
+                "messageKey": "INVERT_COLORS",
+                "label": "Invert Colors",
+                "description": "White on black or black on white",
+                "defaultValue": false
+            },
+            {
+                "type": "toggle",
                 "messageKey": "HOURLY_VIBE",
                 "label": "Vibrate on the Hour",
                 "defaultValue": false
