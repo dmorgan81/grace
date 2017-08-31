@@ -11,6 +11,9 @@ static GFont s_font;
 static Window *s_window;
 static Layer *s_ticks_layer;
 static TextLayer *s_date_layer;
+#ifndef PBL_PLATFORM_APLITE
+static Layer *s_quiet_time_layer;
+#endif
 static Layer *s_hands_layer;
 
 static struct tm s_tick_time;
@@ -19,6 +22,16 @@ static bool s_connected;
 static EventHandle s_connection_event_handle;
 static EventHandle s_tick_timer_event_handle;
 static EventHandle s_settings_received_event_handle;
+
+#ifndef PBL_PLATFORM_APLITE
+static void prv_quiet_time_layer_update_proc(Layer *this, GContext *ctx) {
+    logf();
+    if (!quiet_time_is_active()) return;
+
+    graphics_context_set_text_color(ctx, GColorWhite);
+    graphics_draw_text(ctx, "QT", s_font, layer_get_bounds(this), GTextOverflowModeFill, GTextAlignmentLeft, NULL);
+}
+#endif
 
 static void prv_hands_layer_update_proc(Layer *this, GContext *ctx) {
     logf();
@@ -152,6 +165,12 @@ static void prv_window_load(Window *window) {
     text_layer_set_text_color(s_date_layer, GColorWhite);
     layer_add_child(root_layer, text_layer_get_layer(s_date_layer));
 
+#ifndef PBL_PLATFORM_APLITE
+    s_quiet_time_layer = layer_create(GRect(PBL_IF_RECT_ELSE(15, 30), PBL_IF_RECT_ELSE(77, 83), 15, 15));
+    layer_set_update_proc(s_quiet_time_layer, prv_quiet_time_layer_update_proc);
+    layer_add_child(root_layer, s_quiet_time_layer);
+#endif
+
     s_hands_layer = layer_create(grect_crop(bounds, PBL_IF_RECT_ELSE(12, 27)));
     layer_set_update_proc(s_hands_layer, prv_hands_layer_update_proc);
     layer_add_child(root_layer, s_hands_layer);
@@ -174,6 +193,9 @@ static void prv_window_unload(Window *window) {
     events_connection_service_unsubscribe(s_connection_event_handle);
 
     layer_destroy(s_hands_layer);
+#ifndef PBL_PLATFORM_APLITE
+    layer_destroy(s_quiet_time_layer);
+#endif
     text_layer_destroy(s_date_layer);
     layer_destroy(s_ticks_layer);
 }
