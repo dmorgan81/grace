@@ -42,8 +42,7 @@
         {
           "type": "font",
           "name": "FONT_10",
-          "file": "Lato-Regular.ttf",
-          "characterRegex": "[0-9ADEFHIMNOQRSTUW ]"
+          "file": "Lato-Regular.ttf"
         }
       ]
     }

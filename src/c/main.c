@@ -202,6 +202,7 @@ static void prv_window_unload(Window *window) {
 
 static void prv_init(void) {
     logf();
+    setlocale(LC_ALL, "");
     s_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_10));
 
     enamel_init();
