@@ -161,14 +161,14 @@ static void prv_window_load(Window *window) {
     layer_set_update_proc(s_ticks_layer, prv_ticks_layer_update_proc);
     layer_add_child(root_layer, s_ticks_layer);
 
-    s_date_layer = text_layer_create(GRect(0, PBL_IF_RECT_ELSE(77, 83), bounds.size.w - PBL_IF_RECT_ELSE(15, 30), bounds.size.h));
+    s_date_layer = text_layer_create(GRect(0, PBL_IF_RECT_ELSE(78, 84), bounds.size.w - PBL_IF_RECT_ELSE(15, 30), bounds.size.h));
     text_layer_set_background_color(s_date_layer, GColorClear);
     text_layer_set_font(s_date_layer, s_font);
     text_layer_set_text_alignment(s_date_layer, GTextAlignmentRight);
     layer_add_child(root_layer, text_layer_get_layer(s_date_layer));
 
 #ifndef PBL_PLATFORM_APLITE
-    s_quiet_time_layer = layer_create(GRect(PBL_IF_RECT_ELSE(15, 30), PBL_IF_RECT_ELSE(77, 83), 15, 15));
+    s_quiet_time_layer = layer_create(GRect(PBL_IF_RECT_ELSE(15, 30), PBL_IF_RECT_ELSE(78, 84), 15, 15));
     layer_set_update_proc(s_quiet_time_layer, prv_quiet_time_layer_update_proc);
     layer_add_child(root_layer, s_quiet_time_layer);
 #endif
