@@ -4,6 +4,7 @@
 #include <pebble-hourly-vibes/hourly-vibes.h>
 #include <pebble-connection-vibes/connection-vibes.h>
 #include "enamel.h"
+#include "weather.h"
 #include "logging.h"
 
 static GFont s_font;
@@ -14,6 +15,7 @@ static TextLayer *s_date_layer;
 #ifndef PBL_PLATFORM_APLITE
 static Layer *s_quiet_time_layer;
 #endif
+static TextLayer *s_weather_layer;
 static Layer *s_hands_layer;
 
 static struct tm s_tick_time;
@@ -22,6 +24,7 @@ static bool s_connected;
 static EventHandle s_connection_event_handle;
 static EventHandle s_tick_timer_event_handle;
 static EventHandle s_settings_received_event_handle;
+static EventHandle s_weather_event_handle;
 
 #ifndef PBL_PLATFORM_APLITE
 static void prv_quiet_time_layer_update_proc(Layer *this, GContext *ctx) {
@@ -131,6 +134,20 @@ static void prv_tick_handler(struct tm *tick_time, TimeUnits units_changed) {
     layer_mark_dirty(s_hands_layer);
 }
 
+static void prv_weather_handler(GenericWeatherInfo *info, GenericWeatherStatus status, void *context) {
+    logf();
+    static char s[8];
+    if (status == GenericWeatherStatusAvailable) {
+        int unit = atoi(enamel_get_WEATHER_UNIT());
+        snprintf(s, sizeof(s), "%d°", unit == 1 ? info->temp_f : info->temp_c);
+        text_layer_set_text(s_weather_layer, s);
+    } else if (status != GenericWeatherStatusPending) {
+        text_layer_set_text(s_weather_layer, "--");
+    } else {
+        text_layer_set_text(s_weather_layer, "??");
+    }
+}
+
 static void prv_settings_received_handler(void *context) {
     logf();
     hourly_vibes_set_enabled(enamel_get_HOURLY_VIBE());
@@ -141,7 +158,16 @@ static void prv_settings_received_handler(void *context) {
 #endif
 
     text_layer_set_text_color(s_date_layer, enamel_get_INVERT_COLORS() ? GColorBlack : GColorWhite);
+    text_layer_set_text_color(s_weather_layer, enamel_get_INVERT_COLORS() ? GColorBlack : GColorWhite);
     window_set_background_color(s_window, enamel_get_INVERT_COLORS() ? GColorWhite: GColorBlack);
+
+    layer_set_hidden(text_layer_get_layer(s_weather_layer), !enamel_get_WEATHER_ENABLED());
+    if (enamel_get_WEATHER_ENABLED() && s_weather_event_handle == NULL) {
+        prv_weather_handler(weather_peek(), weather_status_peek(), NULL);
+        s_weather_event_handle = events_weather_subscribe(prv_weather_handler, NULL);
+    } else if (!enamel_get_WEATHER_ENABLED() && s_weather_event_handle != NULL) {
+        events_weather_unsubscribe(s_weather_event_handle);
+    }
 
     if (s_tick_timer_event_handle)
         events_tick_timer_service_unsubscribe(s_tick_timer_event_handle);
@@ -173,6 +199,12 @@ static void prv_window_load(Window *window) {
     layer_add_child(root_layer, s_quiet_time_layer);
 #endif
 
+    s_weather_layer = text_layer_create(GRect(0, bounds.size.h - 40, bounds.size.w, 20));
+    text_layer_set_background_color(s_weather_layer, GColorClear);
+    text_layer_set_font(s_weather_layer, s_font);
+    text_layer_set_text_alignment(s_weather_layer, GTextAlignmentCenter);
+    layer_add_child(root_layer, text_layer_get_layer(s_weather_layer));
+
     s_hands_layer = layer_create(grect_crop(bounds, PBL_IF_RECT_ELSE(12, 27)));
     layer_set_update_proc(s_hands_layer, prv_hands_layer_update_proc);
     layer_add_child(root_layer, s_hands_layer);
@@ -188,11 +220,13 @@ static void prv_window_load(Window *window) {
 
 static void prv_window_unload(Window *window) {
     logf();
+    if (s_weather_event_handle) events_weather_unsubscribe(s_weather_event_handle);
     if (s_tick_timer_event_handle) events_tick_timer_service_unsubscribe(s_tick_timer_event_handle);
     enamel_settings_received_unsubscribe(s_settings_received_event_handle);
     events_connection_service_unsubscribe(s_connection_event_handle);
 
     layer_destroy(s_hands_layer);
+    text_layer_destroy(s_weather_layer);
 #ifndef PBL_PLATFORM_APLITE
     layer_destroy(s_quiet_time_layer);
 #endif
@@ -206,6 +240,7 @@ static void prv_init(void) {
     s_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_10));
 
     enamel_init();
+    weather_init();
     connection_vibes_init();
     hourly_vibes_init();
     uint32_t const pattern[] = { 100 };
@@ -229,6 +264,7 @@ static void prv_deinit(void) {
 
     connection_vibes_deinit();
     hourly_vibes_deinit();
+    weather_deinit();
     enamel_deinit();
 
     fonts_unload_custom_font(s_font);

@@ -9,6 +9,8 @@
   "dependencies": {
     "enamel": "^1.2.5",
     "pebble-connection-vibes": "^1.1.0",
+    "pebble-generic-weather": "^1.1.6",
+    "pebble-geocode-mapquest": "^1.0.2",
     "pebble-hourly-vibes": "^1.1.0"
   },
   "pebble": {
@@ -26,11 +28,19 @@
       "watchface": true
     },
     "messageKeys": [
+      "APP_READY",
       "HOURLY_VIBE",
       "CONNECTION_VIBE",
       "ENABLE_HEALTH",
       "SHOW_SECOND_HAND",
-      "INVERT_COLORS"
+      "INVERT_COLORS",
+      "WEATHER_ENABLED",
+      "WEATHER_KEY",
+      "WEATHER_UNIT",
+      "WEATHER_INTERVAL",
+      "WEATHER_PROVIDER",
+      "WEATHER_USE_GPS",
+      "WEATHER_LOCATION_NAME"
     ],
     "resources": {
       "media": [
