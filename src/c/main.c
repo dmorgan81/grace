@@ -119,10 +119,14 @@ static inline void strupp(char *s) {
 static void prv_tick_handler(struct tm *tick_time, TimeUnits units_changed) {
     logf();
     if (units_changed & DAY_UNIT) {
+#ifdef DEMO
+        text_layer_set_text(s_date_layer, "WED 14");
+#else
         static char s[8];
         strftime(s, sizeof(s), "%a %d", tick_time);
         strupp(s);
         text_layer_set_text(s_date_layer, s);
+#endif
     }
 
     memcpy(&s_tick_time, tick_time, sizeof(struct tm));
