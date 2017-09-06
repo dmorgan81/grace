@@ -43,6 +43,13 @@
             },
             {
                 "type": "toggle",
+                "messageKey": "SHOW_STEPS",
+                "label": "Show Steps",
+                "defaultValue": false,
+                "capabilities": [ "HEALTH" ]
+            },
+            {
+                "type": "toggle",
                 "messageKey": "ENABLE_HEALTH",
                 "label": "Enable Health",
                 "description": "Suppresses Bluetooth and hourly vibes while sleeping",

@@ -16,6 +16,9 @@ static TextLayer *s_date_layer;
 static Layer *s_quiet_time_layer;
 #endif
 static TextLayer *s_weather_layer;
+#ifdef PBL_HEALTH
+static TextLayer *s_steps_layer;
+#endif
 static Layer *s_hands_layer;
 
 static struct tm s_tick_time;
@@ -25,6 +28,9 @@ static EventHandle s_connection_event_handle;
 static EventHandle s_tick_timer_event_handle;
 static EventHandle s_settings_received_event_handle;
 static EventHandle s_weather_event_handle;
+#ifdef PBL_HEALTH
+static EventHandle s_health_event_handle;
+#endif
 
 #ifndef PBL_PLATFORM_APLITE
 static void prv_quiet_time_layer_update_proc(Layer *this, GContext *ctx) {
@@ -158,13 +164,41 @@ static void prv_weather_handler(GenericWeatherInfo *info, GenericWeatherStatus s
     }
 }
 
+#ifdef PBL_HEALTH
+static void prv_health_handler(HealthEventType event, void *context) {
+    logf();
+    if (event == HealthEventSignificantUpdate || event == HealthEventMovementUpdate) {
+        time_t start = time_start_of_today();
+        time_t end = time(NULL);
+        HealthServiceAccessibilityMask mask = health_service_metric_accessible(HealthMetricStepCount, start, end);
+        if (mask & HealthServiceAccessibilityMaskAvailable) {
+            HealthValue steps = health_service_sum_today(HealthMetricStepCount);
+            static char s[8];
+            snprintf(s, sizeof(s), "%ld", steps);
+            text_layer_set_text(s_steps_layer, s);
+        } else {
+            text_layer_set_text(s_steps_layer, "NA");
+        }
+    }
+}
+#endif
+
 static void prv_settings_received_handler(void *context) {
     logf();
     hourly_vibes_set_enabled(enamel_get_HOURLY_VIBE());
     connection_vibes_set_state(atoi(enamel_get_CONNECTION_VIBE()));
 #ifdef PBL_HEALTH
-    connection_vibes_enable_health(enamel_get_ENABLE_HEALTH());
-    hourly_vibes_enable_health(enamel_get_ENABLE_HEALTH());
+    connection_vibes_enable_health(enamel_get_ENABLE_HEALTH() || enamel_get_SHOW_STEPS());
+    hourly_vibes_enable_health(enamel_get_ENABLE_HEALTH() || enamel_get_SHOW_STEPS());
+
+    text_layer_set_text_color(s_steps_layer, enamel_get_INVERT_COLORS() ? GColorBlack : GColorWhite);
+    layer_set_hidden(text_layer_get_layer(s_steps_layer), !enamel_get_SHOW_STEPS());
+    if (enamel_get_SHOW_STEPS() && s_health_event_handle == NULL) {
+        prv_health_handler(HealthEventSignificantUpdate, NULL);
+        s_health_event_handle = events_health_service_events_subscribe(prv_health_handler, NULL);
+    } else if (!enamel_get_SHOW_STEPS() && s_health_event_handle != NULL) {
+        events_health_service_events_unsubscribe(s_health_event_handle);
+    }
 #endif
 
     text_layer_set_text_color(s_date_layer, enamel_get_INVERT_COLORS() ? GColorBlack : GColorWhite);
@@ -209,11 +243,19 @@ static void prv_window_load(Window *window) {
     layer_add_child(root_layer, s_quiet_time_layer);
 #endif
 
-    s_weather_layer = text_layer_create(GRect(0, bounds.size.h - 40, bounds.size.w, 20));
+    s_weather_layer = text_layer_create(GRect(0, bounds.size.h - PBL_IF_RECT_ELSE(40, 45), bounds.size.w, 20));
     text_layer_set_background_color(s_weather_layer, GColorClear);
     text_layer_set_font(s_weather_layer, s_font);
     text_layer_set_text_alignment(s_weather_layer, GTextAlignmentCenter);
     layer_add_child(root_layer, text_layer_get_layer(s_weather_layer));
+
+#ifdef PBL_HEALTH
+    s_steps_layer = text_layer_create(GRect(1, PBL_IF_RECT_ELSE(30, 35), bounds.size.w, 20));
+    text_layer_set_background_color(s_steps_layer, GColorClear);
+    text_layer_set_font(s_steps_layer, s_font);
+    text_layer_set_text_alignment(s_steps_layer, GTextAlignmentCenter);
+    layer_add_child(root_layer, text_layer_get_layer(s_steps_layer));
+#endif
 
     s_hands_layer = layer_create(grect_crop(bounds, PBL_IF_RECT_ELSE(12, 27)));
     layer_set_update_proc(s_hands_layer, prv_hands_layer_update_proc);
@@ -230,12 +272,18 @@ static void prv_window_load(Window *window) {
 
 static void prv_window_unload(Window *window) {
     logf();
+#ifdef PBL_HEALTH
+    if (s_health_event_handle) events_health_service_events_unsubscribe(s_health_event_handle);
+#endif
     if (s_weather_event_handle) events_weather_unsubscribe(s_weather_event_handle);
     if (s_tick_timer_event_handle) events_tick_timer_service_unsubscribe(s_tick_timer_event_handle);
     enamel_settings_received_unsubscribe(s_settings_received_event_handle);
     events_connection_service_unsubscribe(s_connection_event_handle);
 
     layer_destroy(s_hands_layer);
+#ifdef PBL_HEALTH
+    text_layer_destroy(s_steps_layer);
+#endif
     text_layer_destroy(s_weather_layer);
 #ifndef PBL_PLATFORM_APLITE
     layer_destroy(s_quiet_time_layer);

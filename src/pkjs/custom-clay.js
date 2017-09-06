@@ -75,6 +75,13 @@ module.exports = function(minified) {
                 if (gpsToggle.get()) locationInput.hide();
                 else locationInput.show();
             }).trigger('change');
+
+            var stepsToggle = Clay.getItemByMessageKey('SHOW_STEPS');
+            var healthToggle = Clay.getItemByMessageKey('ENABLE_HEALTH');
+            stepsToggle.on('change', function() {
+                if (stepsToggle.get()) healthToggle.hide();
+                else healthToggle.show();
+            }).trigger('change');
         }
 
         var weatherEnabled = Clay.getItemByMessageKey('WEATHER_ENABLED');

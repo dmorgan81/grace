@@ -34,6 +34,7 @@
       "ENABLE_HEALTH",
       "SHOW_SECOND_HAND",
       "INVERT_COLORS",
+      "SHOW_STEPS",
       "WEATHER_ENABLED",
       "WEATHER_KEY",
       "WEATHER_UNIT",
