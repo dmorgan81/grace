@@ -49,25 +49,38 @@ static void prv_hands_layer_update_proc(Layer *this, GContext *ctx) {
     center.x -= 1;
     center.y -= 1;
 
-    graphics_context_set_stroke_width(ctx, 3);
-    graphics_context_set_stroke_color(ctx, enamel_get_INVERT_COLORS() ? GColorBlack : GColorWhite);
+    int32_t angle = s_tick_time.tm_min * TRIG_MAX_ANGLE / 60;
+    GPoint point = gpoint_from_polar(bounds, GOvalScaleModeFitCircle, angle);
 
-    int32_t angle = TRIG_MAX_ANGLE * ((((s_tick_time.tm_hour % 12) * 6) + (s_tick_time.tm_min / 10))) / (12 * 6);
-    GPoint point = gpoint_from_polar(grect_crop(bounds, 15), GOvalScaleModeFitCircle, angle);
+    graphics_context_set_stroke_width(ctx, 4);
+    graphics_context_set_stroke_color(ctx, enamel_get_INVERT_COLORS() ? GColorWhite : GColorBlack);
     graphics_draw_line(ctx, center, point);
 
-    angle = s_tick_time.tm_min * TRIG_MAX_ANGLE / 60;
-    point = gpoint_from_polar(bounds, GOvalScaleModeFitCircle, angle);
+    graphics_context_set_stroke_width(ctx, 3);
+    graphics_context_set_stroke_color(ctx, enamel_get_INVERT_COLORS() ? GColorBlack : GColorWhite);
+    graphics_draw_line(ctx, center, point);
+
+    angle = TRIG_MAX_ANGLE * ((((s_tick_time.tm_hour % 12) * 6) + (s_tick_time.tm_min / 10))) / (12 * 6);
+    point = gpoint_from_polar(grect_crop(bounds, 15), GOvalScaleModeFitCircle, angle);
+
+    graphics_context_set_stroke_width(ctx, 4);
+    graphics_context_set_stroke_color(ctx, enamel_get_INVERT_COLORS() ? GColorWhite : GColorBlack);
+    graphics_draw_line(ctx, center, point);
+
+    graphics_context_set_stroke_width(ctx, 3);
+    graphics_context_set_stroke_color(ctx, enamel_get_INVERT_COLORS() ? GColorBlack : GColorWhite);
     graphics_draw_line(ctx, center, point);
 
     if (enamel_get_SHOW_SECOND_HAND()) {
-#ifdef PBL_COLOR
-        graphics_context_set_stroke_color(ctx, GColorRed);
-#endif
-        graphics_context_set_stroke_width(ctx, 1);
-
         angle = s_tick_time.tm_sec * TRIG_MAX_ANGLE / 60;
         point = gpoint_from_polar(bounds, GOvalScaleModeFitCircle, angle);
+
+        graphics_context_set_stroke_width(ctx, 2);
+        graphics_context_set_stroke_color(ctx, enamel_get_INVERT_COLORS() ? GColorWhite : GColorBlack);
+        graphics_draw_line(ctx, center, point);
+
+        graphics_context_set_stroke_color(ctx, PBL_IF_COLOR_ELSE(GColorRed, enamel_get_INVERT_COLORS() ? GColorBlack : GColorWhite));
+        graphics_context_set_stroke_width(ctx, 1);
         graphics_draw_line(ctx, center, point);
     }
 
