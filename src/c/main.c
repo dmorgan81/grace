@@ -143,12 +143,18 @@ static void prv_weather_handler(GenericWeatherInfo *info, GenericWeatherStatus s
     static char s[8];
     if (status == GenericWeatherStatusAvailable) {
         int unit = atoi(enamel_get_WEATHER_UNIT());
-        snprintf(s, sizeof(s), "%d°", unit == 1 ? info->temp_f : info->temp_c);
+        int16_t temp = unit == 1 ? info->temp_f : info->temp_c;
+        snprintf(s, sizeof(s), "%d°", temp);
         text_layer_set_text(s_weather_layer, s);
-    } else if (status != GenericWeatherStatusPending) {
-        text_layer_set_text(s_weather_layer, "--");
+
+        GRect frame = layer_get_frame(text_layer_get_layer(s_weather_layer));
+        frame.origin.x = temp < 0 ? 1 : 3;
+        layer_set_frame(text_layer_get_layer(s_weather_layer), frame);
     } else {
-        text_layer_set_text(s_weather_layer, "??");
+        text_layer_set_text(s_weather_layer, status != GenericWeatherStatusPending ? "EE" : "??");
+        GRect frame = layer_get_frame(text_layer_get_layer(s_weather_layer));
+        frame.origin.x = 1;
+        layer_set_frame(text_layer_get_layer(s_weather_layer), frame);
     }
 }
 
