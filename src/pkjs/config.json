@@ -43,6 +43,12 @@
             },
             {
                 "type": "toggle",
+                "messageKey": "SHOW_BATTERY",
+                "label": "Show Battery",
+                "defaultValue": false
+            },
+            {
+                "type": "toggle",
                 "messageKey": "SHOW_STEPS",
                 "label": "Show Steps",
                 "defaultValue": false,

@@ -12,8 +12,10 @@ static GFont s_font;
 static Window *s_window;
 static Layer *s_ticks_layer;
 static TextLayer *s_date_layer;
+static Layer *s_status_layer;
+static TextLayer *s_battery_layer;
 #ifndef PBL_PLATFORM_APLITE
-static Layer *s_quiet_time_layer;
+static TextLayer *s_quiet_time_layer;
 #endif
 static TextLayer *s_weather_layer;
 #ifdef PBL_HEALTH
@@ -26,20 +28,11 @@ static bool s_connected;
 
 static EventHandle s_connection_event_handle;
 static EventHandle s_tick_timer_event_handle;
+static EventHandle s_battery_event_handle;
 static EventHandle s_settings_received_event_handle;
 static EventHandle s_weather_event_handle;
 #ifdef PBL_HEALTH
 static EventHandle s_health_event_handle;
-#endif
-
-#ifndef PBL_PLATFORM_APLITE
-static void prv_quiet_time_layer_update_proc(Layer *this, GContext *ctx) {
-    logf();
-    if (!quiet_time_is_active()) return;
-
-    graphics_context_set_text_color(ctx, enamel_get_INVERT_COLORS() ? GColorBlack : GColorWhite);
-    graphics_draw_text(ctx, "QT", s_font, layer_get_bounds(this), GTextOverflowModeFill, GTextAlignmentLeft, NULL);
-}
 #endif
 
 static void prv_hands_layer_update_proc(Layer *this, GContext *ctx) {
@@ -123,6 +116,21 @@ static void prv_ticks_layer_update_proc(Layer *this, GContext *ctx) {
             graphics_draw_line(ctx, p1, p2);
         }
     }
+}
+
+static void prv_status_layer_update_proc(Layer *this, GContext *ctx) {
+    logf();
+#ifndef PBL_PLATFORM_APLITE
+    layer_set_hidden(text_layer_get_layer(s_quiet_time_layer), !quiet_time_is_active());
+#endif
+    layer_set_hidden(text_layer_get_layer(s_battery_layer), quiet_time_is_active() || !enamel_get_SHOW_BATTERY());
+}
+
+static void prv_battery_state_handler(BatteryChargeState charge_state) {
+    logf();
+    static char s[8];
+    snprintf(s, sizeof(s), "%d%%", charge_state.charge_percent);
+    text_layer_set_text(s_battery_layer, s);
 }
 
 static void prv_app_connection_handler(bool connected) {
@@ -215,6 +223,10 @@ static void prv_settings_received_handler(void *context) {
 #endif
 
     text_layer_set_text_color(s_date_layer, enamel_get_INVERT_COLORS() ? GColorBlack : GColorWhite);
+    text_layer_set_text_color(s_battery_layer, enamel_get_INVERT_COLORS() ? GColorBlack : GColorWhite);
+#ifndef PBL_PLATFORM_APLITE
+    text_layer_set_text_color(s_quiet_time_layer, enamel_get_INVERT_COLORS() ? GColorBlack : GColorWhite);
+#endif
     text_layer_set_text_color(s_weather_layer, enamel_get_INVERT_COLORS() ? GColorBlack : GColorWhite);
     window_set_background_color(s_window, enamel_get_INVERT_COLORS() ? GColorWhite: GColorBlack);
 
@@ -224,6 +236,15 @@ static void prv_settings_received_handler(void *context) {
         s_weather_event_handle = events_weather_subscribe(prv_weather_handler, NULL);
     } else if (!enamel_get_WEATHER_ENABLED() && s_weather_event_handle != NULL) {
         events_weather_unsubscribe(s_weather_event_handle);
+        s_battery_event_handle = NULL;
+    }
+
+    if (enamel_get_SHOW_BATTERY() && s_battery_event_handle == NULL) {
+        prv_battery_state_handler(battery_state_service_peek());
+        s_battery_event_handle = events_battery_state_service_subscribe(prv_battery_state_handler);
+    } else if (!enamel_get_SHOW_BATTERY() && s_battery_event_handle != NULL) {
+        events_battery_state_service_unsubscribe(s_battery_event_handle);
+        s_battery_event_handle = NULL;
     }
 
     if (s_tick_timer_event_handle)
@@ -250,10 +271,23 @@ static void prv_window_load(Window *window) {
     text_layer_set_text_alignment(s_date_layer, GTextAlignmentRight);
     layer_add_child(root_layer, text_layer_get_layer(s_date_layer));
 
+    s_status_layer = layer_create(GRect(PBL_IF_RECT_ELSE(15, 30), PBL_IF_RECT_ELSE(78, 84), bounds.size.w, bounds.size.h));
+    layer_set_update_proc(s_status_layer, prv_status_layer_update_proc);
+    layer_add_child(root_layer, s_status_layer);
+
+    s_battery_layer = text_layer_create(bounds);
+    text_layer_set_background_color(s_battery_layer, GColorClear);
+    text_layer_set_font(s_battery_layer, s_font);
+    text_layer_set_text_alignment(s_battery_layer, GTextAlignmentLeft);
+    layer_add_child(s_status_layer, text_layer_get_layer(s_battery_layer));
+
 #ifndef PBL_PLATFORM_APLITE
-    s_quiet_time_layer = layer_create(GRect(PBL_IF_RECT_ELSE(15, 30), PBL_IF_RECT_ELSE(78, 84), 15, 15));
-    layer_set_update_proc(s_quiet_time_layer, prv_quiet_time_layer_update_proc);
-    layer_add_child(root_layer, s_quiet_time_layer);
+    s_quiet_time_layer = text_layer_create(bounds);
+    text_layer_set_background_color(s_quiet_time_layer, GColorClear);
+    text_layer_set_font(s_quiet_time_layer, s_font);
+    text_layer_set_text_alignment(s_quiet_time_layer, GTextAlignmentLeft);
+    text_layer_set_text(s_quiet_time_layer, "QT");
+    layer_add_child(s_status_layer, text_layer_get_layer(s_quiet_time_layer));
 #endif
 
     s_weather_layer = text_layer_create(GRect(0, bounds.size.h - PBL_IF_RECT_ELSE(40, 45), bounds.size.w, 20));
@@ -289,6 +323,7 @@ static void prv_window_unload(Window *window) {
     if (s_health_event_handle) events_health_service_events_unsubscribe(s_health_event_handle);
 #endif
     if (s_weather_event_handle) events_weather_unsubscribe(s_weather_event_handle);
+    if (s_battery_event_handle) events_battery_state_service_unsubscribe(s_battery_event_handle);
     if (s_tick_timer_event_handle) events_tick_timer_service_unsubscribe(s_tick_timer_event_handle);
     enamel_settings_received_unsubscribe(s_settings_received_event_handle);
     events_connection_service_unsubscribe(s_connection_event_handle);
@@ -299,8 +334,10 @@ static void prv_window_unload(Window *window) {
 #endif
     text_layer_destroy(s_weather_layer);
 #ifndef PBL_PLATFORM_APLITE
-    layer_destroy(s_quiet_time_layer);
+    text_layer_destroy(s_quiet_time_layer);
 #endif
+    text_layer_destroy(s_battery_layer);
+    layer_destroy(s_status_layer);
     text_layer_destroy(s_date_layer);
     layer_destroy(s_ticks_layer);
 }
